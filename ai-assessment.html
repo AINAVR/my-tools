@@ -77,38 +77,54 @@
                 inboundCalls: 0,
                 inboundDuration: 0,
                 hourlyWage: 0,
-                workingDaysPerMonth: 22
+                workingDaysPerMonth: 22,
+                manpowerCount: 1, // New field for total manpower
+                customManpower: '' // For when manpower is custom
             });
 
             const [results, setResults] = React.useState({
                 dailyCallTime: 0,
                 monthlyCallTime: 0,
                 yearlyCallTime: 0,
-                dailyCost: 0,
-                monthlyCost: 0,
-                yearlyCost: 0,
-                aiEfficiency: 85,
-                monthlySavings: 0,
-                yearlySavings: 0,
+                dailyHumanCost: 0,
+                monthlyHumanCost: 0,
+                yearlyHumanCost: 0,
+                aiEfficiencyRate: 0, // Now calculated
+                monthlyAIServiceCost: 0, // New AI cost
+                monthlyNetSavings: 0,
+                yearlyNetSavings: 0,
                 roiMonths: 0
             });
 
             const handleIndustryChange = (e) => {
                 const industry = e.target.value;
                 const preset = industryPresets[industry];
-                if (preset) {
-                    setFormData(prev => ({
-                        ...prev,
-                        industry,
-                        outboundCalls: preset.callVolume.outbound,
-                        outboundDuration: preset.callVolume.avgDuration,
-                        inboundCalls: preset.callVolume.inbound,
-                        inboundDuration: preset.callVolume.avgDuration,
-                        hourlyWage: preset.avgHourlyWage
-                    }));
+                setFormData(prev => {
+                    const newFormData = { ...prev, industry };
+                    if (preset) {
+                        newFormData.outboundCalls = preset.callVolume.outbound;
+                        newFormData.outboundDuration = preset.callVolume.avgDuration;
+                        newFormData.inboundCalls = preset.callVolume.inbound;
+                        newFormData.inboundDuration = preset.callVolume.avgDuration;
+                        newFormData.hourlyWage = preset.avgHourlyWage;
+                    }
+                    // For "Custom", existing values are kept, or manual entry is expected.
+                    return newFormData;
+                });
+            };
+
+            const handleManpowerChange = (e) => {
+                const value = e.target.value;
+                if (value === 'custom') {
+                    setFormData(prev => ({ ...prev, manpowerCount: 0, customManpower: '' }));
                 } else {
-                    setFormData(prev => ({ ...prev, industry }));
+                    setFormData(prev => ({ ...prev, manpowerCount: parseFloat(value), customManpower: '' }));
                 }
+            };
+
+            const handleCustomManpowerChange = (e) => {
+                const value = e.target.value;
+                setFormData(prev => ({ ...prev, customManpower: value, manpowerCount: parseFloat(value) || 0 }));
             };
 
             const handleChange = (e) => {
@@ -121,48 +137,75 @@
 
             React.useEffect(() => {
                 const calculateResults = () => {
-                    const totalCallTimeMinutes =
+                    // Call time is per person
+                    const totalCallTimeMinutesPerPerson =
                         (formData.outboundCalls * formData.outboundDuration) +
                         (formData.inboundCalls * formData.inboundDuration);
 
-                    const dailyCallTimeHours = totalCallTimeMinutes / 60;
-                    const monthlyCallTimeHours = dailyCallTimeHours * formData.workingDaysPerMonth;
-                    const yearlyCallTimeHours = monthlyCallTimeHours * 12;
+                    const dailyCallTimeHoursPerPerson = totalCallTimeMinutesPerPerson / 60;
+                    const monthlyCallTimeHoursPerPerson = dailyCallTimeHoursPerPerson * formData.workingDaysPerMonth;
+                    const yearlyCallTimeHoursPerPerson = monthlyCallTimeHoursPerPerson * 12;
 
-                    const dailyCost = dailyCallTimeHours * formData.hourlyWage;
-                    const monthlyCost = monthlyCallTimeHours * formData.hourlyWage;
-                    const yearlyCost = yearlyCallTimeHours * formData.hourlyWage;
+                    // Human Costs (total for all staff)
+                    const totalManpower = formData.manpowerCount > 0 ? formData.manpowerCount : 0;
+                    const monthlyHumanCost = monthlyCallTimeHoursPerPerson * formData.hourlyWage * totalManpower;
+                    const yearlyHumanCost = monthlyHumanCost * 12;
 
-                    const aiEfficiency = 0.85;
-                    const aiCostPerMonth = 150;
-                    const monthlySavings = monthlyCost * aiEfficiency;
-                    const netMonthlySavings = monthlySavings - aiCostPerMonth;
+                    // AI Costs (fixed monthly + per minute)
+                    const aiMonthlyFixedCost = 100;
+                    const aiPerMinuteCost = 0.50;
+                    const aiMonthlyServiceCost = aiMonthlyFixedCost + (totalCallTimeMinutesPerPerson * totalManpower * aiPerMinuteCost);
 
+                    // Savings
+                    const monthlyNetSavings = monthlyHumanCost - aiMonthlyServiceCost;
+                    const yearlyNetSavings = yearlyHumanCost - (aiMonthlyServiceCost * 12);
+
+                    // AI Efficiency Rate (calculated based on savings)
+                    const aiEfficiencyRate = monthlyHumanCost > 0 ? (monthlyNetSavings / monthlyHumanCost) * 100 : 0;
+
+                    // ROI Timeline
                     let roiMonths = 0;
-                    if (netMonthlySavings > 0) {
-                        roiMonths = Math.ceil(aiCostPerMonth / netMonthlySavings);
-                    } else if (netMonthlySavings <= 0 && aiCostPerMonth > 0) {
-                        roiMonths = Infinity;
+                    if (monthlyNetSavings > 0) {
+                        roiMonths = Math.ceil(aiMonthlyServiceCost / monthlyNetSavings);
+                    } else if (aiMonthlyServiceCost > 0) {
+                        roiMonths = Infinity; // Will never get ROI if no savings
                     }
 
                     setResults({
-                        dailyCallTime: dailyCallTimeHours,
-                        monthlyCallTime: monthlyCallTimeHours,
-                        yearlyCallTime: yearlyCallTimeHours,
-                        dailyCost,
-                        monthlyCost,
-                        yearlyCost,
-                        aiEfficiency: aiEfficiency * 100,
-                        monthlySavings: netMonthlySavings,
-                        yearlySavings: (yearlyCost * aiEfficiency) - (aiCostPerMonth * 12),
+                        dailyCallTime: dailyCallTimeHoursPerPerson,
+                        monthlyCallTime: monthlyCallTimeHoursPerPerson,
+                        yearlyCallTime: yearlyCallTimeHoursPerPerson,
+                        monthlyHumanCost,
+                        yearlyHumanCost,
+                        aiEfficiencyRate: Math.max(0, aiEfficiencyRate), // Ensure it's not negative for display
+                        monthlyAIServiceCost,
+                        monthlyNetSavings,
+                        yearlyNetSavings,
                         roiMonths
                     });
                 };
 
-                if (formData.hourlyWage > 0 && formData.workingDaysPerMonth > 0) {
-                    calculateResults();
+                if (formData.hourlyWage > 0 || totalManpower > 0) { // Calculate if there's potential cost
+                     calculateResults();
+                } else {
+                    // Reset results if no meaningful input
+                    setResults({
+                        dailyCallTime: 0,
+                        monthlyCallTime: 0,
+                        yearlyCallTime: 0,
+                        dailyHumanCost: 0,
+                        monthlyHumanCost: 0,
+                        yearlyHumanCost: 0,
+                        aiEfficiencyRate: 0,
+                        monthlyAIServiceCost: 0,
+                        monthlyNetSavings: 0,
+                        yearlyNetSavings: 0,
+                        roiMonths: 0
+                    });
                 }
-            }, [formData]);
+            }, [formData]); // Recalculate whenever formData changes
+
+            const totalManpower = formData.manpowerCount > 0 ? formData.manpowerCount : 0;
 
             return (
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
@@ -173,7 +216,7 @@
 
                     <div className="form-section mb-8 pb-8 border-b border-gray-200">
                         <h3 className="text-xl font-semibold text-gray-700 mb-4">Your Current Operations</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="form-group">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Your Industry:</label>
                                 <select
@@ -201,10 +244,35 @@
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
                                 />
                             </div>
-                        </div>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Outbound Calls:</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Total Manpower Count:</label>
+                                <select
+                                    value={formData.customManpower ? 'custom' : formData.manpowerCount}
+                                    onChange={handleManpowerChange}
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                >
+                                    <option value="0">0</option>
+                                    {[...Array(10).keys()].map(i => (
+                                        <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                    ))}
+                                    <option value="custom">Custom</option>
+                                </select>
+                                {formData.manpowerCount === 0 && formData.customManpower !== null && ( // Show custom input only when 'custom' is selected and not empty
+                                    <input
+                                        type="number"
+                                        name="customManpower"
+                                        value={formData.customManpower}
+                                        onChange={handleCustomManpowerChange}
+                                        min="0"
+                                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                        placeholder="Enter custom count"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                            <div className="form-group">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Outbound Calls (per staff):</label>
                                 <input
                                     type="number"
                                     name="outboundCalls"
@@ -215,7 +283,7 @@
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Outbound Duration (min):</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Outbound Duration (min/call):</label>
                                 <input
                                     type="number"
                                     name="outboundDuration"
@@ -227,7 +295,7 @@
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Inbound Calls:</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Inbound Calls (per staff):</label>
                                 <input
                                     type="number"
                                     name="inboundCalls"
@@ -238,7 +306,7 @@
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Inbound Duration (min):</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Inbound Duration (min/call):</label>
                                 <input
                                     type="number"
                                     name="inboundDuration"
@@ -249,7 +317,7 @@
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
                                 />
                             </div>
-                            <div className="form-group">
+                            <div className="form-group col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Working Days/Month:</label>
                                 <input
                                     type="number"
@@ -268,13 +336,14 @@
                         <h3 className="text-xl font-semibold text-gray-700 mb-4">💰 Potential Savings with AI Voice Agents</h3>
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {[
-                                { title: 'Monthly Call Time', icon: 'Clock', value: results.monthlyCallTime.toFixed(1), unit: 'hours', color: 'blue' },
-                                { title: 'Current Monthly Cost', icon: 'DollarSign', value: `$${results.monthlyCost.toFixed(2)}`, unit: '', color: 'red' },
-                                { title: 'AI Efficiency Rate', icon: 'TrendingUp', value: results.aiEfficiency, unit: '%', color: 'purple' },
-                                { title: 'Monthly Net Savings', icon: 'DollarSign', value: `$${results.monthlySavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
-                                { title: 'Yearly Net Savings', icon: 'TrendingUp', value: `$${results.yearlySavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
+                                { title: 'Monthly Human Call Time (per staff)', icon: 'Clock', value: results.monthlyCallTime.toFixed(1), unit: 'hours', color: 'blue' },
+                                { title: `Total Monthly Human Cost (${totalManpower} staff)`, icon: 'DollarSign', value: `$${results.monthlyHumanCost.toFixed(2)}`, unit: '', color: 'red' },
+                                { title: 'Monthly AI Service Cost', icon: 'Cpu', value: `$${results.monthlyAIServiceCost.toFixed(2)}`, unit: '', color: 'purple' },
+                                { title: 'Calculated AI Efficiency Rate', icon: 'TrendingUp', value: results.aiEfficiencyRate.toFixed(1), unit: '%', color: 'gray' },
+                                { title: 'Monthly Net Savings', icon: 'DollarSign', value: `$${results.monthlyNetSavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
+                                { title: 'Yearly Net Savings', icon: 'TrendingUp', value: `$${results.yearlyNetSavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
                                 { title: 'ROI Timeline',
-                                  value: results.roiMonths === Infinity ? 'No ROI' : results.roiMonths === 0 ? 'Immediate' : `${results.roiMonths} months`,
+                                  value: results.roiMonths === Infinity ? 'No ROI Possible' : results.roiMonths === 0 ? 'Immediate' : `${results.roiMonths} months`,
                                   unit: '',
                                   icon: 'Target',
                                   color: 'indigo'
@@ -297,7 +366,7 @@
 
                     <div className="text-center mt-8 p-4 bg-blue-50 rounded-lg">
                         <p className="text-sm text-blue-700">
-                            <span role="img" aria-label="info">ℹ️</span> <strong>Note:</strong> Calculations assume 85% efficiency rate and $150/month AI service cost.
+                            <span role="img" aria-label="info">ℹ️</span> <strong>Note:</strong> AI service cost is based on a fixed $100/month plus $0.50 per minute of total call time across all staff.
                             Results are estimates based on your inputs.
                         </p>
                     </div>
@@ -305,7 +374,7 @@
             );
         }
 
-        // Niche Manager Component
+        // Niche Manager Component (No changes requested, keeping as is)
         const NicheManager = () => {
             const [niches, setNiches] = React.useState(() => {
                 const saved = localStorage.getItem('ai-tool-niches');
