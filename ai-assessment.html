@@ -72,14 +72,16 @@
         function AssessmentTool() {
             const [formData, setFormData] = React.useState({
                 industry: '',
+                customIndustryName: '', // New field for custom industry name
                 outboundCalls: 0,
                 outboundDuration: 0,
                 inboundCalls: 0,
                 inboundDuration: 0,
                 hourlyWage: 0,
                 workingDaysPerMonth: 22,
-                manpowerCount: 1, // New field for total manpower
-                customManpower: '' // For when manpower is custom
+                manpowerCount: 1,
+                customManpower: '',
+                aiFixedMonthlyCost: 100 // New field for AI fixed monthly cost, default to 100
             });
 
             const [results, setResults] = React.useState({
@@ -89,8 +91,8 @@
                 dailyHumanCost: 0,
                 monthlyHumanCost: 0,
                 yearlyHumanCost: 0,
-                aiEfficiencyRate: 0, // Now calculated
-                monthlyAIServiceCost: 0, // New AI cost
+                aiEfficiencyRate: 0,
+                monthlyAIServiceCost: 0,
                 monthlyNetSavings: 0,
                 yearlyNetSavings: 0,
                 roiMonths: 0
@@ -107,10 +109,21 @@
                         newFormData.inboundCalls = preset.callVolume.inbound;
                         newFormData.inboundDuration = preset.callVolume.avgDuration;
                         newFormData.hourlyWage = preset.avgHourlyWage;
+                        newFormData.customIndustryName = ''; // Clear custom name if selecting preset
+                    } else if (industry === 'custom') {
+                        // Clear numerical fields for manual entry, keep customIndustryName if already set
+                        newFormData.outboundCalls = 0;
+                        newFormData.outboundDuration = 0;
+                        newFormData.inboundCalls = 0;
+                        newFormData.inboundDuration = 0;
+                        newFormData.hourlyWage = 0;
                     }
-                    // For "Custom", existing values are kept, or manual entry is expected.
                     return newFormData;
                 });
+            };
+
+            const handleCustomIndustryNameChange = (e) => {
+                setFormData(prev => ({ ...prev, customIndustryName: e.target.value }));
             };
 
             const handleManpowerChange = (e) => {
@@ -144,7 +157,6 @@
 
                     const dailyCallTimeHoursPerPerson = totalCallTimeMinutesPerPerson / 60;
                     const monthlyCallTimeHoursPerPerson = dailyCallTimeHoursPerPerson * formData.workingDaysPerMonth;
-                    // const yearlyCallTimeHoursPerPerson = monthlyCallTimeHoursPerPerson * 12; // Not directly used in final calcs now
 
                     // Human Costs (total for all staff)
                     const totalManpower = formData.manpowerCount > 0 ? formData.manpowerCount : 0;
@@ -152,9 +164,12 @@
                     const yearlyHumanCost = monthlyHumanCost * 12;
 
                     // AI Costs (fixed monthly + per minute)
-                    const aiMonthlyFixedCost = 100;
-                    const aiPerMinuteCost = 0.50;
-                    const aiMonthlyServiceCost = aiMonthlyFixedCost + (totalCallTimeMinutesPerPerson * totalManpower * aiPerMinuteCost);
+                    const aiMonthlyFixedCost = formData.aiFixedMonthlyCost; // Use selected fixed cost from formData
+                    const aiPerMinuteCost = 0.50; // Confirmed as $0.50 per minute
+
+                    // Total minutes for AI calculation (across all staff)
+                    const totalCallTimeMinutesAllStaff = totalCallTimeMinutesPerPerson * totalManpower;
+                    const aiMonthlyServiceCost = aiMonthlyFixedCost + (totalCallTimeMinutesAllStaff * aiPerMinuteCost);
 
                     // Savings
                     const monthlyNetSavings = monthlyHumanCost - aiMonthlyServiceCost;
@@ -165,20 +180,23 @@
 
                     // ROI Timeline
                     let roiMonths = 0;
+                    // ROI is about recovering the initial AI fixed cost if there are monthly net savings
+                    // If monthly savings are positive, calculate how many months it takes to recover the fixed cost.
                     if (monthlyNetSavings > 0) {
-                        roiMonths = Math.ceil(aiMonthlyServiceCost / monthlyNetSavings);
-                    } else if (aiMonthlyServiceCost > 0) {
-                        roiMonths = Infinity; // Will never get ROI if no savings
+                        roiMonths = Math.ceil(aiMonthlyFixedCost / monthlyNetSavings);
+                    } else if (aiMonthlyFixedCost > 0) {
+                        roiMonths = Infinity; // Will never get ROI if no savings, but there's a cost
                     }
+
 
                     setResults({
                         dailyCallTime: dailyCallTimeHoursPerPerson,
                         monthlyCallTime: monthlyCallTimeHoursPerPerson,
-                        yearlyCallTime: monthlyCallTimeHoursPerPerson * 12, // Explicitly calculate here
+                        yearlyCallTime: monthlyCallTimeHoursPerPerson * 12,
                         monthlyHumanCost,
                         yearlyHumanCost,
-                        aiEfficiencyRate: Math.max(0, aiEfficiencyRate), // Ensure it's not negative for display
-                        monthlyAIServiceCost: aiMonthlyServiceCost, // Corrected variable name here
+                        aiEfficiencyRate: Math.max(0, aiEfficiencyRate),
+                        monthlyAIServiceCost: aiMonthlyServiceCost,
                         monthlyNetSavings,
                         yearlyNetSavings,
                         roiMonths
@@ -186,7 +204,8 @@
                 };
 
                 // Trigger calculation if any relevant input is provided
-                if (formData.hourlyWage > 0 || formData.outboundCalls > 0 || formData.inboundCalls > 0 || formData.manpowerCount > 0) {
+                // Added aiFixedMonthlyCost to dependencies so calculation updates when it changes
+                if (formData.hourlyWage > 0 || formData.outboundCalls > 0 || formData.inboundCalls > 0 || formData.manpowerCount > 0 || formData.aiFixedMonthlyCost > 0) {
                      calculateResults();
                 } else {
                     // Reset results if no meaningful input
@@ -231,6 +250,16 @@
                                     ))}
                                     <option value="custom">Custom (Enter Manually)</option>
                                 </select>
+                                {formData.industry === 'custom' && (
+                                    <input
+                                        type="text"
+                                        name="customIndustryName"
+                                        value={formData.customIndustryName}
+                                        onChange={handleCustomIndustryNameChange}
+                                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                        placeholder="Enter Custom Industry Name (e.g., Geologist)"
+                                    />
+                                )}
                             </div>
 
                             <div className="form-group">
@@ -258,7 +287,7 @@
                                     ))}
                                     <option value="custom">Custom</option>
                                 </select>
-                                {formData.manpowerCount === 0 && formData.customManpower !== null && ( // Show custom input only when 'custom' is selected and not empty
+                                {formData.manpowerCount === 0 && formData.customManpower !== null && (
                                     <input
                                         type="number"
                                         name="customManpower"
@@ -318,7 +347,7 @@
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
                                 />
                             </div>
-                            <div className="form-group col-span-2">
+                            <div className="form-group">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Working Days/Month:</label>
                                 <input
                                     type="number"
@@ -329,6 +358,20 @@
                                     max="31"
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
                                 />
+                            </div>
+                             <div className="form-group">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">AI Fixed Monthly Cost ($):</label>
+                                <select
+                                    name="aiFixedMonthlyCost"
+                                    value={formData.aiFixedMonthlyCost}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                >
+                                    <option value="100">100</option>
+                                    <option value="125">125</option>
+                                    <option value="150">150</option>
+                                    <option value="175">175</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -367,7 +410,7 @@
 
                     <div className="text-center mt-8 p-4 bg-blue-50 rounded-lg">
                         <p className="text-sm text-blue-700">
-                            <span role="img" aria-label="info">ℹ️</span> <strong>Note:</strong> AI service cost is based on a fixed $100/month plus $0.50 per minute of total call time across all staff.
+                            <span role="img" aria-label="info">ℹ️</span> <strong>Note:</strong> AI service cost is based on a fixed monthly fee (selected above) plus $0.50 per minute of total call time across all staff.
                             Results are estimates based on your inputs.
                         </p>
                     </div>
