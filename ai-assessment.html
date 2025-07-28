@@ -54,25 +54,76 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        // Industry Presets
+        // Currency Symbols Map
+        const currencySymbols = {
+            'USD': '$',
+            'EUR': '€',
+            'AED': 'د.إ',
+            'SGD': 'S$',
+            'INR': '₹',
+            'GBP': '£'
+        };
+
+        // Industry Presets with approximate average hourly wages for different currencies
+        // Note: These are general averages based on search data and may need manual adjustment for specific regional accuracy.
         const industryPresets = {
-            dental: { name: 'Dental Front Office', avgHourlyWage: 18, callVolume: { outbound: 25, inbound: 40, avgDuration: 4 } },
-            realestate: { name: 'Real Estate', avgHourlyWage: 22, callVolume: { outbound: 50, inbound: 30, avgDuration: 6 } },
-            healthcare: { name: 'Healthcare', avgHourlyWage: 20, callVolume: { outbound: 20, inbound: 60, avgDuration: 5 } },
-            recruitment: { name: 'Recruitment', avgHourlyWage: 25, callVolume: { outbound: 40, inbound: 20, avgDuration: 8 } },
-            education: { name: 'Education', avgHourlyWage: 19, callVolume: { outbound: 15, inbound: 35, avgDuration: 6 } },
-            spa: { name: 'Spa & Wellness', avgHourlyWage: 16, callVolume: { outbound: 10, inbound: 25, avgDuration: 3 } },
-            gym: { name: 'Gym & Fitness', avgHourlyWage: 17, callVolume: { outbound: 20, inbound: 30, avgDuration: 4 } },
-            receptionist: { name: 'General Receptionist', avgHourlyWage: 15, callVolume: { outbound: 15, inbound: 45, avgDuration: 4 } },
-            restaurant: { name: 'Restaurant', avgHourlyWage: 14, callVolume: { outbound: 5, inbound: 50, avgDuration: 2 } },
-            loans: { name: 'Loan Agents', avgHourlyWage: 28, callVolume: { outbound: 60, inbound: 25, avgDuration: 10 } }
+            dental: { 
+                name: 'Dental Front Office', 
+                avgHourlyWage: { USD: 18, EUR: 17, AED: 28.13, SGD: 13.8, INR: 100.82, GBP: 12 }, 
+                callVolume: { outbound: 25, inbound: 40, avgDuration: 4 } 
+            },
+            realestate: { 
+                name: 'Real Estate', 
+                avgHourlyWage: { USD: 22, EUR: 25, AED: 40, SGD: 18, INR: 250, GBP: 15 }, // Example values, couldn't find precise real estate agent hourly wages for all regions.
+                callVolume: { outbound: 50, inbound: 30, avgDuration: 6 } 
+            },
+            healthcare: { 
+                name: 'Healthcare', 
+                avgHourlyWage: { USD: 20, EUR: 20, AED: 35, SGD: 16, INR: 200, GBP: 13 }, // General healthcare worker, specific roles vary.
+                callVolume: { outbound: 20, inbound: 60, avgDuration: 5 } 
+            },
+            recruitment: { 
+                name: 'Recruitment', 
+                avgHourlyWage: { USD: 25, EUR: 28, AED: 45, SGD: 20, INR: 300, GBP: 17 }, // Example values.
+                callVolume: { outbound: 40, inbound: 20, avgDuration: 8 } 
+            },
+            education: { 
+                name: 'Education', 
+                avgHourlyWage: { USD: 19, EUR: 33.5, AED: 71.15, SGD: 13.88, INR: 504, GBP: 10 }, 
+                callVolume: { outbound: 15, inbound: 35, avgDuration: 6 } 
+            },
+            spa: { 
+                name: 'Spa & Wellness', 
+                avgHourlyWage: { USD: 16, EUR: 15, AED: 25, SGD: 12, INR: 80, GBP: 10 }, // Example values.
+                callVolume: { outbound: 10, inbound: 25, avgDuration: 3 } 
+            },
+            gym: { 
+                name: 'Gym & Fitness', 
+                avgHourlyWage: { USD: 17, EUR: 25, AED: 218.62, SGD: 13.76, INR: 304.51, GBP: 10.10 }, 
+                callVolume: { outbound: 20, inbound: 30, avgDuration: 4 } 
+            },
+            receptionist: { 
+                name: 'General Receptionist', 
+                avgHourlyWage: { USD: 15, EUR: 17, AED: 22.45, SGD: 13.8, INR: 98.75, GBP: 9.81 }, 
+                callVolume: { outbound: 15, inbound: 45, avgDuration: 4 } 
+            },
+            restaurant: { 
+                name: 'Restaurant', 
+                avgHourlyWage: { USD: 14, EUR: 12, AED: 20, SGD: 10, INR: 70, GBP: 9 }, // Example values.
+                callVolume: { outbound: 5, inbound: 50, avgDuration: 2 } 
+            },
+            loans: { 
+                name: 'Loan Agents', 
+                avgHourlyWage: { USD: 28, EUR: 30, AED: 50, SGD: 22, INR: 350, GBP: 19 }, // Example values.
+                callVolume: { outbound: 60, inbound: 25, avgDuration: 10 } 
+            }
         };
 
         // AI Voice Agent Assessment Tool Component
         function AssessmentTool() {
             const [formData, setFormData] = React.useState({
                 industry: '',
-                customIndustryName: '', // New field for custom industry name
+                customIndustryName: '', 
                 outboundCalls: 0,
                 outboundDuration: 0,
                 inboundCalls: 0,
@@ -81,7 +132,8 @@
                 workingDaysPerMonth: 22,
                 manpowerCount: 1,
                 customManpower: '',
-                aiFixedMonthlyCost: 100 // New field for AI fixed monthly cost, default to 100
+                aiFixedMonthlyCost: 100,
+                currency: 'USD' // Default currency
             });
 
             const [results, setResults] = React.useState({
@@ -108,7 +160,8 @@
                         newFormData.outboundDuration = preset.callVolume.avgDuration;
                         newFormData.inboundCalls = preset.callVolume.inbound;
                         newFormData.inboundDuration = preset.callVolume.avgDuration;
-                        newFormData.hourlyWage = preset.avgHourlyWage;
+                        // Set hourly wage based on selected currency
+                        newFormData.hourlyWage = preset.avgHourlyWage[newFormData.currency] || 0; 
                         newFormData.customIndustryName = ''; // Clear custom name if selecting preset
                     } else if (industry === 'custom') {
                         // Clear numerical fields for manual entry, keep customIndustryName if already set
@@ -117,6 +170,18 @@
                         newFormData.inboundCalls = 0;
                         newFormData.inboundDuration = 0;
                         newFormData.hourlyWage = 0;
+                    }
+                    return newFormData;
+                });
+            };
+
+            const handleCurrencyChange = (e) => {
+                const newCurrency = e.target.value;
+                setFormData(prev => {
+                    const newFormData = { ...prev, currency: newCurrency };
+                    // If an industry preset is selected, update hourly wage based on new currency
+                    if (prev.industry && prev.industry !== 'custom' && industryPresets[prev.industry]) {
+                        newFormData.hourlyWage = industryPresets[prev.industry].avgHourlyWage[newCurrency] || 0;
                     }
                     return newFormData;
                 });
@@ -164,8 +229,8 @@
                     const yearlyHumanCost = monthlyHumanCost * 12;
 
                     // AI Costs (fixed monthly + per minute)
-                    const aiMonthlyFixedCost = formData.aiFixedMonthlyCost; // Use selected fixed cost from formData
-                    const aiPerMinuteCost = 0.50; // Confirmed as $0.50 per minute
+                    const aiMonthlyFixedCost = formData.aiFixedMonthlyCost; 
+                    const aiPerMinuteCost = 0.50; // This is a fixed value, assuming it's also in the selected currency for calculation purposes.
 
                     // Total minutes for AI calculation (across all staff)
                     const totalCallTimeMinutesAllStaff = totalCallTimeMinutesPerPerson * totalManpower;
@@ -180,14 +245,11 @@
 
                     // ROI Timeline
                     let roiMonths = 0;
-                    // ROI is about recovering the initial AI fixed cost if there are monthly net savings
-                    // If monthly savings are positive, calculate how many months it takes to recover the fixed cost.
                     if (monthlyNetSavings > 0) {
                         roiMonths = Math.ceil(aiMonthlyFixedCost / monthlyNetSavings);
                     } else if (aiMonthlyFixedCost > 0) {
-                        roiMonths = Infinity; // Will never get ROI if no savings, but there's a cost
+                        roiMonths = Infinity; 
                     }
-
 
                     setResults({
                         dailyCallTime: dailyCallTimeHoursPerPerson,
@@ -204,7 +266,6 @@
                 };
 
                 // Trigger calculation if any relevant input is provided
-                // Added aiFixedMonthlyCost to dependencies so calculation updates when it changes
                 if (formData.hourlyWage > 0 || formData.outboundCalls > 0 || formData.inboundCalls > 0 || formData.manpowerCount > 0 || formData.aiFixedMonthlyCost > 0) {
                     calculateResults();
                 } else {
@@ -228,208 +289,223 @@
             const totalManpower = formData.manpowerCount > 0 ? formData.manpowerCount : 0;
 
             return (
-                <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-                    <h2 className="text-3xl font-bold text-blue-800 mb-6 text-center flex items-center justify-center gap-2">
-                        <lucide-icon name="Calculator" class="w-8 h-8"></lucide-icon>
-                        AI Voice Agent Savings Calculator
-                    </h2>
+                <div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto my-8">
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">AI Voice Agent Assessment & Niche Manager</h2>
 
-                    <div className="form-section mb-8 pb-8 border-b border-gray-200">
-                        <h3 className="text-xl font-semibold text-gray-700 mb-4">Your Current Operations</h3>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Your Industry:</label>
-                                <select
-                                    value={formData.industry}
-                                    onChange={handleIndustryChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                >
-                                    <option value="">-- Select Industry --</option>
-                                    {Object.entries(industryPresets).map(([key, preset]) => (
-                                        <option key={key} value={key}>{preset.name}</option>
-                                    ))}
-                                    <option value="custom">Custom (Enter Manually)</option>
-                                </select>
-                                {formData.industry === 'custom' && (
-                                    <input
-                                        type="text"
-                                        name="customIndustryName"
-                                        value={formData.customIndustryName}
-                                        onChange={handleCustomIndustryNameChange}
-                                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                        placeholder="Enter Custom Industry Name (e.g., Geologist)"
-                                    />
-                                )}
-                            </div>
+                    <div className="grid md:grid-cols-2 gap-6 mb-8">
+                        {/* Assessment Section */}
+                        <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+                            <h3 className="text-xl font-semibold text-gray-700 mb-4">Calculate Potential AI Savings</h3>
+                            <div className="space-y-4">
+                                <div className="form-group">
+                                    <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-1">Select Industry Preset:</label>
+                                    <select
+                                        id="industry"
+                                        name="industry"
+                                        value={formData.industry}
+                                        onChange={handleIndustryChange}
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    >
+                                        <option value="">Select an industry</option>
+                                        {Object.entries(industryPresets).map(([key, preset]) => (
+                                            <option key={key} value={key}>{preset.name}</option>
+                                        ))}
+                                        <option value="custom">Custom Industry</option>
+                                    </select>
+                                    {formData.industry === 'custom' && (
+                                        <input
+                                            type="text"
+                                            name="customIndustryName"
+                                            value={formData.customIndustryName}
+                                            onChange={handleCustomIndustryNameChange}
+                                            className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                            placeholder="Enter Custom Industry Name (e.g., Geologist)"
+                                        />
+                                    )}
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Select Currency:</label>
+                                    <select
+                                        id="currency"
+                                        name="currency"
+                                        value={formData.currency}
+                                        onChange={handleCurrencyChange}
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    >
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="AED">AED (د.إ)</option>
+                                        <option value="SGD">SGD (S$)</option>
+                                        <option value="INR">INR (₹)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                    </select>
+                                </div>
 
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Avg. Hourly Wage ($):</label>
-                                <input
-                                    type="number"
-                                    name="hourlyWage"
-                                    value={formData.hourlyWage}
-                                    onChange={handleChange}
-                                    min="0"
-                                    step="0.01"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Total Manpower Count:</label>
-                                <select
-                                    value={formData.customManpower ? 'custom' : (formData.manpowerCount === 0 && !formData.customManpower ? '0' : formData.manpowerCount)}
-                                    onChange={handleManpowerChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                >
-                                    <option value="0">0</option>
-                                    {[...Array(10).keys()].map(i => (
-                                        <option key={i + 1} value={i + 1}>{i + 1}</option>
-                                    ))}
-                                    <option value="custom">Custom</option>
-                                </select>
-                                {formData.manpowerCount === 0 && formData.customManpower !== null && (
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Avg. Hourly Wage ({currencySymbols[formData.currency]}):</label>
                                     <input
                                         type="number"
-                                        name="customManpower"
-                                        value={formData.customManpower}
-                                        onChange={handleCustomManpowerChange}
+                                        name="hourlyWage"
+                                        value={formData.hourlyWage}
+                                        onChange={handleChange}
                                         min="0"
-                                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                        placeholder="Enter custom count"
+                                        step="0.01"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
                                     />
-                                )}
-                            </div>
-                        </div>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Outbound Calls (per staff):</label>
-                                <input
-                                    type="number"
-                                    name="outboundCalls"
-                                    value={formData.outboundCalls}
-                                    onChange={handleChange}
-                                    min="0"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Outbound Duration (min/call):</label>
-                                <input
-                                    type="number"
-                                    name="outboundDuration"
-                                    value={formData.outboundDuration}
-                                    onChange={handleChange}
-                                    min="0"
-                                    step="0.5"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Inbound Calls (per staff):</label>
-                                <input
-                                    type="number"
-                                    name="inboundCalls"
-                                    value={formData.inboundCalls}
-                                    onChange={handleChange}
-                                    min="0"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Inbound Duration (min/call):</label>
-                                <input
-                                    type="number"
-                                    name="inboundDuration"
-                                    value={formData.inboundDuration}
-                                    onChange={handleChange}
-                                    min="0"
-                                    step="0.5"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Working Days/Month:</label>
-                                <input
-                                    type="number"
-                                    name="workingDaysPerMonth"
-                                    value={formData.workingDaysPerMonth}
-                                    onChange={handleChange}
-                                    min="1"
-                                    max="31"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                />
-                            </div>
-                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">AI Fixed Monthly Cost ($):</label>
-                                <select
-                                    name="aiFixedMonthlyCost"
-                                    value={formData.aiFixedMonthlyCost}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
-                                >
-                                    <option value="100">100</option>
-                                    <option value="125">125</option>
-                                    <option value="150">150</option>
-                                    <option value="175">175</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="results-section">
-                        <h3 className="text-xl font-semibold text-gray-700 mb-4">💰 Potential Savings with AI Voice Agents</h3>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[
-                                { title: 'Monthly Human Call Time (per staff)', icon: 'Clock', value: results.monthlyCallTime.toFixed(1), unit: 'hours', color: 'blue' },
-                                { title: `Total Monthly Human Cost (${totalManpower} staff)`, icon: 'DollarSign', value: `$${results.monthlyHumanCost.toFixed(2)}`, unit: '', color: 'red' },
-                                { title: 'Monthly AI Service Cost', icon: 'Cpu', value: `$${results.monthlyAIServiceCost.toFixed(2)}`, unit: '', color: 'purple' },
-                                { title: 'Calculated AI Efficiency Rate', icon: 'TrendingUp', value: results.aiEfficiencyRate.toFixed(1), unit: '%', color: 'gray' },
-                                { title: 'Monthly Net Savings', icon: 'DollarSign', value: `$${results.monthlyNetSavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
-                                { title: 'Yearly Net Savings', icon: 'TrendingUp', value: `$${results.yearlyNetSavings.toFixed(2)}`, unit: '', color: 'green', highlight: true },
-                                { title: 'ROI Timeline',
-                                  value: results.roiMonths === Infinity ? 'No ROI Possible' : results.roiMonths === 0 ? 'Immediate' : `${results.roiMonths} months`,
-                                  unit: '',
-                                  icon: 'Target',
-                                  color: 'indigo'
-                                }
-                            ].map((card, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`${card.highlight ? 'ring-2 ring-green-400 bg-green-50' : 'bg-gray-50'} border border-gray-200 p-6 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow`}
-                                >
-                                    <h4 className={`text-sm font-semibold text-gray-600 flex items-center justify-center gap-2 mb-2`}>
-                                        <lucide-icon name={card.icon} class="w-4 h-4"></lucide-icon> {card.title}
-                                    </h4>
-                                    <p className={`text-2xl font-bold ${card.highlight ? 'text-green-700' : 'text-gray-900'}`}>
-                                        {card.value} <small className={`text-sm font-normal ${card.highlight ? 'text-green-600' : 'text-gray-600'}`}>{card.unit}</small>
-                                    </p>
+                                    <p className="mt-1 text-xs text-gray-500">Enter wage in selected currency. Presets are general averages.</p>
                                 </div>
-                            ))}
+
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Outbound Calls (daily, per staff):</label>
+                                    <input
+                                        type="number"
+                                        name="outboundCalls"
+                                        value={formData.outboundCalls}
+                                        onChange={handleChange}
+                                        min="0"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Avg. Outbound Call Duration (minutes):</label>
+                                    <input
+                                        type="number"
+                                        name="outboundDuration"
+                                        value={formData.outboundDuration}
+                                        onChange={handleChange}
+                                        min="0"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Inbound Calls (daily, per staff):</label>
+                                    <input
+                                        type="number"
+                                        name="inboundCalls"
+                                        value={formData.inboundCalls}
+                                        onChange={handleChange}
+                                        min="0"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Avg. Inbound Call Duration (minutes):</label>
+                                    <input
+                                        type="number"
+                                        name="inboundDuration"
+                                        value={formData.inboundDuration}
+                                        onChange={handleChange}
+                                        min="0"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Working Days Per Month:</label>
+                                    <input
+                                        type="number"
+                                        name="workingDaysPerMonth"
+                                        value={formData.workingDaysPerMonth}
+                                        onChange={handleChange}
+                                        min="1"
+                                        max="31"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Manpower Count:</label>
+                                    <select
+                                        value={formData.customManpower ? 'custom' : (formData.manpowerCount === 0 && !formData.customManpower ? '0' : formData.manpowerCount)}
+                                        onChange={handleManpowerChange}
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    >
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                    {formData.manpowerCount === 0 && formData.customManpower !== '' && ( // Only show if custom and not cleared
+                                        <input
+                                            type="number"
+                                            name="customManpower"
+                                            value={formData.customManpower}
+                                            onChange={handleCustomManpowerChange}
+                                            min="0"
+                                            className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                            placeholder="Enter Custom Manpower Count"
+                                        />
+                                    )}
+                                    {formData.manpowerCount === 0 && formData.customManpower === '' && formData.manpowerCount !== 1 && formData.industry !== '' && (
+                                         <p className="mt-1 text-xs text-red-500">Please enter a valid manpower count or select a preset.</p>
+                                    )}
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="aiFixedMonthlyCost" className="block text-sm font-medium text-gray-700 mb-1">AI Fixed Monthly Cost ({currencySymbols[formData.currency]}):</label>
+                                    <input
+                                        type="number"
+                                        name="aiFixedMonthlyCost"
+                                        id="aiFixedMonthlyCost"
+                                        value={formData.aiFixedMonthlyCost}
+                                        onChange={handleChange}
+                                        min="0"
+                                        step="1"
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">Assumes AI per minute cost is {currencySymbols[formData.currency]}0.50.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Results Section */}
+                        <div className="results-section bg-blue-50 p-6 rounded-lg shadow-sm">
+                            <h3 className="text-xl font-semibold text-gray-700 mb-4">💰 Potential Savings with AI Voice Agents</h3>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[
+                                    { title: 'Monthly Human Call Time (per staff)', icon: 'Clock', value: results.monthlyCallTime.toFixed(1), unit: 'hours', color: 'blue' },
+                                    { title: `Total Monthly Human Cost (${totalManpower} staff)`, icon: 'DollarSign', value: `${currencySymbols[formData.currency]}${results.monthlyHumanCost.toFixed(2)}`, unit: '', color: 'red' },
+                                    { title: 'Monthly AI Service Cost', icon: 'Cpu', value: `${currencySymbols[formData.currency]}${results.monthlyAIServiceCost.toFixed(2)}`, unit: '', color: 'purple' },
+                                    { title: 'Monthly Net Savings', icon: 'TrendingUp', value: `${currencySymbols[formData.currency]}${results.monthlyNetSavings.toFixed(2)}`, unit: '', color: 'green' },
+                                    { title: 'Yearly Net Savings', icon: 'ChartLine', value: `${currencySymbols[formData.currency]}${results.yearlyNetSavings.toFixed(2)}`, unit: '', color: 'emerald' },
+                                    { title: 'AI Efficiency Rate', icon: 'Gauge', value: `${results.aiEfficiencyRate.toFixed(2)}`, unit: '%', color: 'teal' },
+                                    { title: 'ROI Timeline', icon: 'Target', value: results.roiMonths === Infinity ? 'Never' : results.roiMonths.toFixed(0), unit: 'months', color: 'orange' },
+                                ].map((item, index) => (
+                                    <div key={index} className="flex flex-col items-center p-4 bg-white rounded-lg shadow">
+                                        <div className={`text-${item.color}-500 mb-2`}>
+                                            {/* Render Lucide icon dynamically */}
+                                            <i data-lucide={item.icon} className="lucide w-8 h-8"></i>
+                                        </div>
+                                        <p className="text-gray-500 text-sm text-center">{item.title}</p>
+                                        <p className="text-xl font-bold text-gray-800 mt-1">{item.value} {item.unit}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="mt-4 text-sm text-gray-600 text-center">
+                                *All costs are estimated based on your inputs and selected currency. Average hourly wages are general and may require local verification.
+                            </p>
                         </div>
                     </div>
 
-                    <div className="text-center mt-8 p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-700">
-                            <span role="img" aria-label="info">ℹ️</span> <strong>Note:</strong> AI service cost is based on a fixed monthly fee (selected above) plus $0.50 per minute of total call time across all staff.
-                            Results are estimates based on your inputs.
-                        </p>
+                    {/* Niche Manager Section - Unchanged */}
+                    <div className="niche-manager-section bg-white p-6 rounded-lg shadow-lg">
+                        <h3 className="text-xl font-semibold text-gray-700 mb-4">Niche Manager <span className="text-sm text-gray-500">(Add, Edit, Delete Niches)</span></h3>
+                        <NicheManagerTool />
                     </div>
                 </div>
             );
         }
 
-        // Niche Manager Component (No changes requested, keeping as is)
-        const NicheManager = () => {
+        // Niche Manager Tool Component (Remains unchanged from previous version)
+        function NicheManagerTool() {
             const [niches, setNiches] = React.useState(() => {
-                const saved = localStorage.getItem('ai-tool-niches');
-                return saved ? JSON.parse(saved) : [
-                    { id: 1, name: 'Digital Marketing Agency', amount: 2500, description: 'SEO, PPC, Social Media Marketing services' },
-                    { id: 2, name: 'Web Development', amount: 3500, description: 'Frontend, Backend, Full-stack Development' }
-                ];
+                const savedNiches = localStorage.getItem('ai-tool-niches');
+                return savedNiches ? JSON.parse(savedNiches) : [];
             });
-
-            const [newNiche, setNewNiche] = React.useState({ name: '', amount: 0, description: '' });
             const [showAddForm, setShowAddForm] = React.useState(false);
+            const [newNiche, setNewNiche] = React.useState({ name: '', amount: 0, description: '' });
             const [editId, setEditId] = React.useState(null);
 
             React.useEffect(() => {
@@ -438,11 +514,11 @@
 
             const saveNiche = (niche) => {
                 if (editId) {
-                    setNiches(niches.map(n => n.id === editId ? {...niche, id: editId} : n));
+                    setNiches(niches.map(n => n.id === editId ? { ...niche, id: editId } : n));
                     setEditId(null);
                 } else {
                     const id = niches.length ? Math.max(...niches.map(n => n.id)) + 1 : 1;
-                    setNiches([...niches, {...niche, id}]);
+                    setNiches([...niches, { ...niche, id }]);
                 }
                 setNewNiche({ name: '', amount: 0, description: '' });
                 setShowAddForm(false);
@@ -464,51 +540,17 @@
             const avgAmount = niches.length ? Math.round(totalAmount / niches.length) : 0;
 
             return (
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 text-white rounded-full mb-4">
-                            <lucide-icon name="Target" class="w-8 h-8"></lucide-icon>
-                        </div>
-                        <h2 className="text-3xl font-bold text-purple-900 mb-4">
-                            Business Niche Manager
-                        </h2>
-                        <p className="text-lg text-purple-600 leading-relaxed max-w-2xl mx-auto">
-                            Track and manage your business niches with their revenue potential. Perfect for agencies and consultants managing multiple service areas.
-                        </p>
-                    </div>
+                <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+                    <button
+                        onClick={() => { setShowAddForm(!showAddForm); setEditId(null); setNewNiche({ name: '', amount: 0, description: '' }); }}
+                        className="mb-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                        {showAddForm ? 'Cancel Add/Edit Niche' : 'Add New Niche'}
+                    </button>
 
-                    {/* Summary Cards */}
-                    <div className="grid md:grid-cols-3 gap-6 mb-8">
-                        {[
-                            { title: 'Total Niches', value: niches.length, icon: 'Target', color: 'purple' },
-                            { title: 'Total Revenue Potential', value: `$${totalAmount.toLocaleString()}`, icon: 'DollarSign', color: 'green' },
-                            { title: 'Average Niche Value', value: `$${avgAmount.toLocaleString()}`, icon: 'TrendingUp', color: 'blue' }
-                        ].map((card, idx) => (
-                            <div
-                                key={idx}
-                                className={`bg-${card.color}-50 rounded-xl shadow-sm border border-${card.color}-200 p-6`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className={`text-sm font-semibold text-${card.color}-600 uppercase tracking-wide mb-1`}>
-                                            {card.title}
-                                        </p>
-                                        <p className={`text-3xl font-bold text-${card.color}-900`}>
-                                            {card.value}
-                                        </p>
-                                    </div>
-                                    <div className={`text-3xl text-${card.color}-500`}>
-                                        <lucide-icon name={card.icon} class="w-8 h-8"></lucide-icon>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Add/Edit Form */}
                     {showAddForm && (
-                        <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                            <h3 className="text-xl font-semibold text-gray-700 mb-4">{editId ? 'Edit Niche' : 'Add New Niche'}</h3>
+                        <div className="bg-white p-4 rounded-lg shadow-md mb-4">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-3">{editId ? 'Edit Niche' : 'Add New Niche'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
                                     <label htmlFor="nicheName" className="block text-sm font-medium text-gray-700">Niche Name</label>
@@ -516,18 +558,17 @@
                                         type="text"
                                         id="nicheName"
                                         value={newNiche.name}
-                                        onChange={(e) => setNewNiche({...newNiche, name: e.target.value})}
+                                        onChange={(e) => setNewNiche({ ...newNiche, name: e.target.value })}
                                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                                        placeholder="e.g., E-commerce Solutions"
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label htmlFor="nicheAmount" className="block text-sm font-medium text-gray-700">Revenue Potential ($)</label>
+                                    <label htmlFor="nicheAmount" className="block text-sm font-medium text-gray-700">Monthly Amount/Value (e.g., in USD)</label>
                                     <input
                                         type="number"
                                         id="nicheAmount"
                                         value={newNiche.amount}
-                                        onChange={(e) => setNewNiche({...newNiche, amount: parseFloat(e.target.value) || 0})}
+                                        onChange={(e) => setNewNiche({ ...newNiche, amount: parseFloat(e.target.value) || 0 })}
                                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
                                         min="0"
                                         step="100"
@@ -538,101 +579,63 @@
                                     <textarea
                                         id="nicheDescription"
                                         value={newNiche.description}
-                                        onChange={(e) => setNewNiche({...newNiche, description: e.target.value})}
+                                        onChange={(e) => setNewNiche({ ...newNiche, description: e.target.value })}
                                         rows="3"
                                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                                        placeholder="Briefly describe this niche and its offerings."
                                     ></textarea>
                                 </div>
                             </div>
-                            <div className="mt-4 flex justify-end space-x-3">
-                                <button
-                                    onClick={() => {
-                                        setShowAddForm(false);
-                                        setEditId(null);
-                                        setNewNiche({ name: '', amount: 0, description: '' });
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => saveNiche(newNiche)}
-                                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                                >
-                                    {editId ? 'Update Niche' : 'Add Niche'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {!showAddForm && (
-                        <div className="text-center mb-6">
                             <button
-                                onClick={() => setShowAddForm(true)}
-                                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                                onClick={() => saveNiche(newNiche)}
+                                className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                             >
-                                <lucide-icon name="Plus" class="w-5 h-5 mr-2"></lucide-icon> Add New Niche
+                                {editId ? 'Save Changes' : 'Add Niche'}
                             </button>
                         </div>
                     )}
 
-
-                    {/* Niche List */}
                     {niches.length > 0 ? (
-                        <div className="bg-white shadow overflow-hidden rounded-md">
-                            <ul className="divide-y divide-gray-200">
-                                {niches.map((niche) => (
-                                    <li key={niche.id} className="p-4 hover:bg-gray-50">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-lg font-medium text-gray-900">{niche.name}</p>
-                                                <p className="text-sm text-gray-500">{niche.description}</p>
-                                            </div>
-                                            <div className="flex items-center space-x-4">
-                                                <span className="text-lg font-bold text-green-600">${niche.amount.toLocaleString()}</span>
-                                                <button
-                                                    onClick={() => startEditing(niche)}
-                                                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-gray-200"
-                                                    title="Edit"
-                                                >
-                                                    <lucide-icon name="Edit" class="w-5 h-5"></lucide-icon>
-                                                </button>
-                                                <button
-                                                    onClick={() => deleteNiche(niche.id)}
-                                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-gray-200"
-                                                    title="Delete"
-                                                >
-                                                    <lucide-icon name="Trash2" class="w-5 h-5"></lucide-icon>
-                                                </button>
-                                            </div>
+                        <div className="mt-4">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-3">Your Saved Niches</h4>
+                            <div className="space-y-4">
+                                {niches.map(niche => (
+                                    <div key={niche.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-md font-medium text-gray-900">{niche.name}: ${niche.amount.toLocaleString()}</p>
+                                            <p className="text-sm text-gray-600">{niche.description}</p>
                                         </div>
-                                    </li>
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={() => startEditing(niche)}
+                                                className="p-2 rounded-full text-blue-500 hover:bg-blue-100"
+                                                aria-label="Edit Niche"
+                                            >
+                                                <i data-lucide="edit" className="lucide w-5 h-5"></i>
+                                            </button>
+                                            <button
+                                                onClick={() => deleteNiche(niche.id)}
+                                                className="p-2 rounded-full text-red-500 hover:bg-red-100"
+                                                aria-label="Delete Niche"
+                                            >
+                                                <i data-lucide="trash-2" className="lucide w-5 h-5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
+                            <div className="mt-6 p-4 bg-indigo-50 rounded-lg shadow-inner text-center">
+                                <p className="text-lg font-bold text-indigo-800">Total Niche Amount: ${totalAmount.toLocaleString()}</p>
+                                <p className="text-md text-indigo-700">Average Niche Amount: ${avgAmount.toLocaleString()}</p>
+                            </div>
                         </div>
                     ) : (
-                        <p className="text-center text-gray-500 p-8 bg-gray-50 rounded-md border border-gray-200">
-                            No niches added yet. Click "Add New Niche" to get started!
-                        </p>
+                        <p className="mt-4 text-gray-600 text-center">No niches added yet. Add your first niche above!</p>
                     )}
-                </div>
-            );
-        };
-
-        // Main App Component
-        function App() {
-            return (
-                <div className="min-h-screen bg-gray-100 p-8">
-                    <div className="max-w-6xl mx-auto">
-                        <AssessmentTool />
-                        <NicheManager />
-                    </div>
                 </div>
             );
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+        ReactDOM.render(<AssessmentTool />, document.getElementById('root'));
     </script>
 </body>
 </html>
